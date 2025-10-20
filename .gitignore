@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Application
+app.log
+*.log
+config.json.backup
+config copy.json
+*.tmp
+
+# Knowledge Base (optional - uncomment to ignore PDFs)
+# knowledge_base/*.pdf
+
+# Screenshots (if saved locally)
+screenshots/
+*.png.debug
+
+# API Keys (extra safety)
+*.key
+.env
+secrets.json
+
+# Windows
+Thumbs.db
+desktop.ini

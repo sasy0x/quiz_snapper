@@ -1,0 +1,1 @@
+pythonw -m src.main
