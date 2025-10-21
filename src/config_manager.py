@@ -4,7 +4,7 @@ from pathlib import Path
 CONFIG_FILE = Path(__file__).resolve().parent.parent / "config.json"
 
 DEFAULT_CONFIG = {
-    "version": "1.1.0",
+    "version": "1.2.0",
     "shortcut": "ctrl+alt+x",
     "debug_mode": False,
     "log_file": "app.log",
@@ -13,7 +13,6 @@ DEFAULT_CONFIG = {
     "ocr_lang": "eng+ita",
     "popup_enabled": True,
     "popup_position": "bottom_right",
-    "popup_duration_ms": 7000,
     "popup_width": 420,
     "popup_height": 280,
     "popup_auto_close_delay_ms": 7000,
@@ -25,7 +24,7 @@ DEFAULT_CONFIG = {
     "api_url": "",
     "api_key": "",
     "api_model": "",
-    "prompt_template": "You are a quiz assistant. Analyze the question and provide the answer in the most appropriate format.\n\nFor MULTIPLE CHOICE: List only the correct option(s)\nFor MATCH questions: Show connections as 'A → 1', 'B → 2', etc.\nFor TRUE/FALSE: State True or False\nFor SHORT ANSWER: Provide the direct answer\n\nQuestion: [TEXT]\n\nAnswer:",
+    "prompt_template": "You are a quiz assistant. Analyze the question and provide ONLY the correct answer.\n\nFor MULTIPLE CHOICE: Provide ONLY the correct option text (not all options). If multiple answers are required, the question will explicitly state 'select all that apply' or 'choose two' - only then provide multiple answers.\nFor MATCH questions: Show connections as 'A → 1', 'B → 2', etc.\nFor TRUE/FALSE: State True or False\nFor SHORT ANSWER: Provide the direct answer\n\nQuestion: [TEXT]\n\nAnswer:",
     "show_explanation": True,
     "clean_output": True,
     "use_pdf_context": False,

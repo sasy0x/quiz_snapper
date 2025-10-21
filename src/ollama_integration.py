@@ -48,8 +48,10 @@ def clean_ai_output(raw_response: str) -> str:
     if not raw_response or raw_response.startswith("Error:"):
         return raw_response
     
-    show_explanation = config.get('show_explanation', True)
-    clean_output = config.get('clean_output', True)
+    from .config_manager import load_config
+    current_config = load_config()
+    show_explanation = current_config.get('show_explanation', True)
+    clean_output = current_config.get('clean_output', True)
     
     if not clean_output:
         return raw_response
@@ -63,11 +65,11 @@ def clean_ai_output(raw_response: str) -> str:
         if not line:
             continue
         
-        line = re.sub(r'^(The correct answer is:|The correct answers are:|Answer:|Answers?:)\s*', '', line, flags=re.IGNORECASE)
+        line = re.sub(r'^(The correct answer is:|The correct answers are:|The correct option is:|The correct options are:|Answer:|Answers?:)\s*', '', line, flags=re.IGNORECASE)
         line = re.sub(r'^\*\*(.+?)\*\*$', r'\1', line)
         line = re.sub(r'\*\*(.+?)\*\*', r'\1', line)
         line = re.sub(r'^\(e\)\s*', '', line, flags=re.IGNORECASE)
-        line = re.sub(r'^[©Oo•\-\*\s]+', '', line)
+        line = re.sub(r'^[_©Oo•\-\*\s]+', '', line)
         line = line.strip()
         
         if not show_explanation:
@@ -85,33 +87,23 @@ def clean_ai_output(raw_response: str) -> str:
         result = parts[0] if parts else result
     
     is_match_question = bool(re.search(r'[A-Z]\s*[→\-]\s*\d', result))
+    if is_match_question:
+        result = re.sub(r'\s*->\s*', ' → ', result)
+        result = re.sub(r'\s*--\s*', ' → ', result)
+        result = re.sub(r'â\x86\x92', '→', result)
+        result = re.sub(r'â\x80\x99', '→', result)
+        lines = result.split('\n')
+        match_lines = []
+        for line in lines:
+            match = re.search(r'([A-Z])\s*→\s*(.+)', line)
+            if match:
+                letter = match.group(1)
+                rest = match.group(2).strip()
+                first_sentence = rest.split('.')[0] if '.' in rest else rest
+                match_lines.append(f"{letter} → {first_sentence}")
+        result = '\n'.join(match_lines) if match_lines else result
     
-    answers = []
-    for line in result.split('\n'):
-        line = line.strip()
-        if not line or line.startswith('**Explanation'):
-            continue
-        
-        if is_match_question:
-            line = re.sub(r'\s*->\s*', ' → ', line)
-            line = re.sub(r'\s*--\s*', ' → ', line)
-            answers.append(line)
-        else:
-            if ',' in line and not line.startswith('•'):
-                split_answers = [a.strip() for a in line.split(',')]
-                for ans in split_answers:
-                    if ans and len(ans) > 2:
-                        clean_ans = re.sub(r'^[Oo•\-\*]+\s*', '', ans)
-                        if clean_ans:
-                            answers.append('• ' + clean_ans)
-            else:
-                if not line.startswith('•') and not re.match(r'^[A-Z]\s*→', line):
-                    line = re.sub(r'^[Oo•\-\*]+\s*', '• ', line)
-                else:
-                    line = re.sub(r'^[Oo]+\s*', '• ', line)
-                answers.append(line)
-    
-    return '\n'.join(answers) if answers else result
+    return result
 
 
 def get_ai_response(text_from_ocr: str) -> str:
@@ -144,14 +136,17 @@ def _get_response_from_ai_provider(text_from_ocr: str) -> str:
 
 
 def _call_ollama(text_from_ocr: str, pdf_context: str = "") -> str:
-    """Call local Ollama instance."""
-    api_url = config.get('ollama_api_url', 'http://localhost:11434/api/generate')
-    model_name = config.get('ollama_model', 'deepseek-r1:1.5b')
-    prompt_template = config.get('prompt_template', 
+    from .config_manager import load_config
+    current_config = load_config()
+    api_url = current_config.get('ollama_api_url', 'http://localhost:11434/api/generate')
+    model_name = current_config.get('ollama_model', 'deepseek-r1:1.5b')
+    prompt_template = current_config.get('prompt_template', 
         "Answer the following question based on your knowledge.\n\nQuestion: [TEXT]")
     
-    show_explanation = config.get('show_explanation', True)
-    if not show_explanation:
+    show_explanation = current_config.get('show_explanation', True)
+    if show_explanation:
+        prompt_template += "\n\nProvide the correct answer(s) followed by a brief explanation of why it is correct."
+    else:
         prompt_template += "\n\nProvide ONLY the correct answer(s), without any explanation or additional text."
     
     prompt = prompt_template.replace("[TEXT]", text_from_ocr)
@@ -205,18 +200,21 @@ def _call_ollama(text_from_ocr: str, pdf_context: str = "") -> str:
 
 
 def _call_external_api(text_from_ocr: str, pdf_context: str = "") -> str:
-    """Call external API service."""
-    api_url = config.get('api_url')
-    api_key = config.get('api_key')
-    model_name = config.get('api_model')
-    prompt_template = config.get('prompt_template',
+    from .config_manager import load_config
+    current_config = load_config()
+    api_url = current_config.get('api_url')
+    api_key = current_config.get('api_key')
+    model_name = current_config.get('api_model')
+    prompt_template = current_config.get('prompt_template',
         "Answer the following question based on your knowledge.\n\nQuestion: [TEXT]")
     
     if not all([api_url, api_key, model_name]):
         return "Error: API configuration incomplete. Check config.json"
     
-    show_explanation = config.get('show_explanation', True)
-    if not show_explanation:
+    show_explanation = current_config.get('show_explanation', True)
+    if show_explanation:
+        prompt_template += "\n\nProvide the correct answer(s) followed by a brief explanation of why it is correct."
+    else:
         prompt_template += "\n\nProvide ONLY the correct answer(s), without any explanation or additional text."
     
     prompt_content = prompt_template.replace("[TEXT]", text_from_ocr)
@@ -285,13 +283,3 @@ def _call_external_api(text_from_ocr: str, pdf_context: str = "") -> str:
             return f"Error: {str(e)}"
     
     return "Error: Maximum retries exceeded"
-
-
-if __name__ == '__main__':
-    from .config_manager import load_config
-    load_config()
-    
-    test_text = "What is the capital of France?"
-    print(f"Testing AI response with: '{test_text}'")
-    response = get_ai_response(test_text)
-    print(f"Response: {response}")

@@ -20,7 +20,8 @@ def process_screenshot_workflow(tray_app_instance_ref: SystemTrayApp):
 
     active_popup = None
     screenshot_region = None
-    popup_enabled = config.get('popup_enabled', True)
+    current_config = load_config()
+    popup_enabled = current_config.get('popup_enabled', True)
     log_info("Screenshot workflow started")
 
     try:
@@ -98,7 +99,7 @@ def on_app_exit():
 
 
 def main():
-    log_info("QuizSnapper v1.1.0 starting...")
+    log_info("QuizSnapper v1.2.0 starting...")
     
     current_config = load_config()
     save_config(current_config)

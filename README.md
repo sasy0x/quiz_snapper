@@ -1,13 +1,16 @@
-# QuizSnapper v1.1.0
+# QuizSnapper v1.2.0
 
 **QuizSnapper** is a desktop application that captures screenshots, extracts text using OCR, and provides AI-powered answers to questions. Built with privacy in mind, it works entirely offline using local AI models.
 
-## What's New in v1.1.0
+## What's New in v1.2.0
 
-- **Auto-Select Answers**: Automatically clicks correct answers for multiple choice and true/false questions
-- **Real-time Toggle**: Enable/disable auto-selection from the system tray menu
-- **Smart Detection**: Identifies question types and only auto-selects for supported formats
-- **Human-like Behavior**: Random delays and mouse movements to simulate natural interaction
+- **Enhanced AI Accuracy**: Improved prompt engineering for more precise single-answer responses
+- **Smart Answer Detection**: AI automatically detects when multiple answers are required based on question wording
+- **Advanced OCR Processing**: Image upscaling, grayscale conversion, contrast enhancement, and sharpening for better text recognition
+- **Small Text Support**: Automatic upscaling for images with small text (< 1000x600px)
+- **Improved Fuzzy Matching**: Enhanced algorithm for better answer detection with OCR errors
+- **Real-time Config Updates**: Settings changes apply immediately without restart
+- **Optimized Output Formatting**: Cleaner answer presentation with better Unicode handling
 
 ## Features
 
@@ -18,10 +21,10 @@
 - **Auto-Select Answers** ⭐ NEW: Automatically clicks correct answers on screen for multiple choice and true/false questions
 
 ### Question Support
-- **Multiple Choice**: Single and multiple answer questions
+- **Multiple Choice**: Single and multiple answer questions (AI detects when multiple answers are needed)
 - **True/False**: Boolean questions
-- **MATCH Questions**: Matching questions (A→1, B→2, etc.)
 - **Short Answer**: Text-based responses
+- **MATCH Questions**: Displays matching pairs (auto-selection not supported)
 
 ### Advanced Features
 - **PDF Knowledge Base**: Load PDF documents as reference material for more accurate answers
@@ -110,7 +113,7 @@ The `config.json` file controls all application settings. Here's a complete guid
 
 ```json
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "shortcut": "ctrl+alt+x",
   "debug_mode": false,
   "log_file": "app.log"
@@ -171,7 +174,7 @@ The `config.json` file controls all application settings. Here's a complete guid
 - **popup_auto_close_delay_ms**: Auto-close delay (0 = never auto-close)
 - **popup_transparency**: Window transparency (0.0 to 1.0, default: 0.95)
 
-### Auto-Select Feature ⭐ NEW
+### Auto-Select Feature ⭐
 
 ```json
 {
@@ -182,13 +185,13 @@ The `config.json` file controls all application settings. Here's a complete guid
 - **auto_select_enabled**: Enable automatic answer selection (true/false)
   - When enabled, QuizSnapper will automatically click correct answers on screen
   - Works for multiple choice (radio/checkbox) and true/false questions
-  - Supports multiple correct answers (comma-separated responses)
-  - Does NOT work for MATCH, drag & drop, or fill-in questions
+  - Supports multiple correct answers when explicitly required
   - Can be toggled in real-time from the system tray menu
   - **How it works**: Uses OCR to locate answer text on screen and clicks radio buttons
-  - **Smart matching**: Exact match priority, handles OCR errors like (e) prefix
+  - **Smart matching**: Exact match priority, fuzzy matching for typos, handles OCR errors
   - **Requirements**: Answers must be visible as text on screen
   - **Safety**: PyAutoGUI fail-safe enabled (move mouse to corner to stop)
+  - **Note**: MATCH questions show answers in popup but auto-selection is not supported
 
 ### AI Provider
 
@@ -232,19 +235,19 @@ The `config.json` file controls all application settings. Here's a complete guid
 
 ```json
 {
-  "prompt_template": "You are an AI assistant helping with quiz questions. Analyze the following text extracted from a screenshot and provide a clear, concise answer.\n\nQuestion: [TEXT]\n\nProvide the correct answer with a brief explanation if needed.",
-  "show_explanation": false,
+  "prompt_template": "You are a quiz assistant. Analyze the question and provide ONLY the correct answer.\n\nFor MULTIPLE CHOICE: Provide ONLY the correct option text (not all options). If multiple answers are required, the question will explicitly state 'select all that apply' or 'choose two' - only then provide multiple answers.\nFor MATCH questions: Show connections as 'A → 1', 'B → 2', etc.\nFor TRUE/FALSE: State True or False\nFor SHORT ANSWER: Provide the direct answer\n\nQuestion: [TEXT]\n\nAnswer:",
+  "show_explanation": true,
   "clean_output": true
 }
 ```
 
-- **prompt_template**: Instructions sent to AI
+- **prompt_template**: Instructions sent to AI (optimized to return only correct answers)
 - Use `[TEXT]` as placeholder for extracted text
 - **show_explanation** ⭐: Include explanations in answers (true/false)
-  - `true`: Full answer with explanation
+  - `true`: Correct answer with brief explanation of why it's correct
   - `false`: Only the correct answer(s)
   - Can be toggled from tray menu
-- **clean_output**: Remove "The correct answer is" and format nicely (true/false)
+- **clean_output**: Remove prefixes like "The correct answer is" and format nicely (true/false)
 
 ### PDF Knowledge Base
 
@@ -427,9 +430,21 @@ All toggles show a checkmark when enabled and save immediately to config.
 - Ensure auto-select is enabled in tray menu (checkmark visible)
 - Verify answers are visible as text on screen (not images)
 - Check that question type is supported (multiple choice or true/false)
+- MATCH questions are not supported for auto-selection
 - Enable debug mode to see detection logs
 - Ensure no other windows are covering the quiz
 - Move mouse to screen corner to trigger fail-safe if needed
+
+### OCR Not Accurate
+
+**Problem**: Text extraction is inaccurate or incomplete
+
+**Solutions**:
+- Capture a larger screen area for better context
+- Ensure good contrast between text and background
+- For small text: QuizSnapper automatically upscales images < 1000x600px
+- Try capturing with more zoom if possible
+- Install additional Tesseract language packs if needed
 
 ## Debug Mode
 
@@ -470,7 +485,7 @@ quiz_snapper/
 │   ├── screenshot.py    # Screen capture functionality
 │   ├── ocr.py           # Text extraction
 │   ├── ollama_integration.py # AI integration
-│   ├── auto_selector.py # Auto-select answers (v1.1.0)
+│   ├── auto_selector.py # Auto-select answers (multiple choice & true/false)
 │   └── utils.py         # Logging and utilities
 ├── config.json          # User configuration
 ├── requirements.txt     # Python dependencies

@@ -1,4 +1,4 @@
-# QuizSnapper v1.1.0 - Quick Start Guide
+# QuizSnapper v1.2.0 - Quick Start Guide
 
 Get up and running with QuizSnapper in 5 minutes!
 
@@ -72,7 +72,7 @@ Look for the QuizSnapper icon in your system tray (bottom-right corner).
 4. **Wait 2-3 seconds** for processing
 5. **View the answer** in the popup window
 
-## Using Auto-Select (v1.1.0)
+## Using Auto-Select
 
 To automatically click answers:
 

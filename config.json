@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "shortcut": "ctrl+alt+x",
   "debug_mode": false,
   "log_file": "app.log",
@@ -20,7 +20,7 @@
   "api_url": "YOUR_API_ENDPOINT_HERE",
   "api_key": "YOUR_API_KEY_HERE",
   "api_model": "YOUR_API_MODEL_NAME_HERE",
-  "prompt_template": "You are a quiz assistant. Analyze the question and provide the answer in the most appropriate format.\n\nFor MULTIPLE CHOICE: List only the correct option(s)\nFor MATCH questions: Show connections as 'A \u00e2\u2020\u2019 1', 'B \u00e2\u2020\u2019 2', etc.\nFor TRUE/FALSE: State True or False\nFor SHORT ANSWER: Provide the direct answer\n\nQuestion: [TEXT]\n\nAnswer:",
+  "prompt_template": "You are a quiz assistant. Analyze the question and provide ONLY the correct answer.\n\nFor MULTIPLE CHOICE: Provide ONLY the correct option text (not all options). If multiple answers are required, the question will explicitly state 'select all that apply' or 'choose two' - only then provide multiple answers.\nFor MATCH questions: Show connections as 'A \u00e2\u2020\u2019 1', 'B \u00e2\u2020\u2019 2', etc.\nFor TRUE/FALSE: State True or False\nFor SHORT ANSWER: Provide the direct answer\n\nQuestion: [TEXT]\n\nAnswer:",
   "show_explanation": false,
   "clean_output": true,
   "use_pdf_context": false,

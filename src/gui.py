@@ -197,11 +197,7 @@ class ResponsePopup:
                 log_error(f"Error moving window: {e}", exc_info=True)
 
 
-    def _handle_generic_click(self, event):
-        pass
-
     def _position_window(self):
-        """Positions the window based on the configured position."""
         if not self.root:
             return
 
@@ -343,31 +339,39 @@ class SystemTrayApp:
         return config.get('popup_enabled', True)
 
     def _toggle_popup_action(self, icon, item):
+        from . import config_manager
         current_config = load_config()
         new_state = not current_config.get('popup_enabled', True)
         current_config['popup_enabled'] = new_state
         save_config(current_config)
         
+        config_manager.config = current_config
         global config
         config = current_config
         
         status = "enabled" if new_state else "disabled"
         log_info(f"Popup {status} via tray menu")
+        
+        self._recreate_tray_icon()
 
     def _is_explanation_enabled(self, item):
         return config.get('show_explanation', False)
 
     def _toggle_explanation_action(self, icon, item):
+        from . import config_manager
         current_config = load_config()
         new_state = not current_config.get('show_explanation', False)
         current_config['show_explanation'] = new_state
         save_config(current_config)
         
+        config_manager.config = current_config
         global config
         config = current_config
         
         status = "enabled" if new_state else "disabled"
         log_info(f"Show explanation {status} via tray menu")
+        
+        self._recreate_tray_icon()
 
 
     def _open_config_action(self, icon, item):
@@ -404,6 +408,21 @@ class SystemTrayApp:
             self._show_generic_error_dialog("Error", f"Failed to open log file:\n{e}")
 
 
+    def _recreate_tray_icon(self):
+        try:
+            if self.icon:
+                old_icon = self.icon
+                
+                self.icon = self._create_tray_icon()
+                
+                threading.Thread(target=self.icon.run, daemon=True).start()
+                
+                old_icon.stop()
+                
+                log_info("Tray icon recreated successfully")
+        except Exception as e:
+            log_error(f"Failed to recreate tray icon: {e}", exc_info=True)
+    
     def _exit_action(self, icon, item):
         self.stop()
 

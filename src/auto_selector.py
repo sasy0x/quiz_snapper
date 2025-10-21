@@ -24,24 +24,16 @@ class AutoSelector:
     def parse_answers(self, ai_response: str) -> Tuple[str, List[str]]:
         lines = [line.strip() for line in ai_response.split('\n') if line.strip()]
         
-        if any(re.search(r'[A-Z]\s*→\s*\d', line) for line in lines):
-            return 'match', lines
+        if any(re.search(r'→', line) for line in lines):
+            return 'match', []
         
-        answers = []
-        for line in lines:
-            line = re.sub(r'^[•\-\*]\s*', '', line)
-            if line and not line.lower().startswith(('explanation', 'note:', 'because')):
-                answers.append(line)
+        first_line = lines[0] if lines else ""
+        first_line = re.sub(r'^[•\-\*]\s*', '', first_line)
         
-        if len(answers) > 1:
-            return 'multiple_choice', answers
-        elif len(answers) == 1:
-            answer_lower = answers[0].lower()
-            if answer_lower in ['true', 'false']:
-                return 'true_false', answers
-            return 'single_choice', answers
+        if first_line.lower() in ['true', 'false']:
+            return 'true_false', [first_line]
         
-        return 'unknown', []
+        return 'single_choice', [first_line] if first_line else []
 
     def find_and_click_answers(self, ai_response: str, screenshot_region: Optional[Tuple[int, int, int, int]] = None):
         if not self.enabled:
@@ -52,7 +44,7 @@ class AutoSelector:
         
         try:
             if question_type == 'match':
-                log_info("MATCH questions are not supported for auto-selection")
+                log_info("MATCH questions not supported for auto-selection")
                 return
             
             if question_type == 'unknown' or not answers:
@@ -73,9 +65,10 @@ class AutoSelector:
         except Exception as e:
             log_error(f"Error during auto-selection: {e}", exc_info=True)
 
+
     def _click_answer_on_screen(self, answer_text: str, region: Optional[Tuple[int, int, int, int]] = None, clicked_positions: List[Tuple[int, int]] = None):
         try:
-            clean_answer = re.sub(r'^[©•Oo\-\*\s]+', '', answer_text).strip()
+            clean_answer = re.sub(r'^[_©•Oo\-\*\s]+', '', answer_text).strip()
             clean_answer = re.sub(r'^\(e\)\s*', '', clean_answer, flags=re.IGNORECASE)
             clean_answer = re.sub(r'\s+', ' ', clean_answer)
             
@@ -91,6 +84,7 @@ class AutoSelector:
                 
                 answer_words = clean_answer.lower().split()
                 answer_lower = clean_answer.lower()
+                answer_no_spaces = answer_lower.replace(' ', '')
                 
                 for i in range(len(ocr_data['text'])):
                     if not ocr_data['text'][i].strip():
@@ -104,6 +98,7 @@ class AutoSelector:
                             window_indices.append(j)
                     
                     window_text = ' '.join(window_texts).lower()
+                    window_text_no_spaces = window_text.replace(' ', '')
                     
                     if len(answer_words) == 1:
                         for idx, word in enumerate(window_texts):
@@ -123,6 +118,26 @@ class AutoSelector:
                                     best_match = window_indices[min(target_word_idx, len(window_indices)-1)]
                                     best_match_score = score
                     
+                    if best_match_score < 95 and len(answer_no_spaces) > 5:
+                        if answer_no_spaces in window_text_no_spaces:
+                            score = 90
+                            if score > best_match_score:
+                                best_match = window_indices[0]
+                                best_match_score = score
+                    
+                    if best_match_score < 90 and len(answer_lower) > 5:
+                        for j in range(len(window_texts)):
+                            window_chunk = ' '.join(window_texts[j:min(j+len(answer_words)+2, len(window_texts))]).lower()
+                            if len(window_chunk) > 0:
+                                common_chars = sum(1 for c in answer_lower if c in window_chunk)
+                                similarity = common_chars / len(answer_lower)
+                                
+                                if similarity > 0.85:  
+                                    score = int(similarity * 85)
+                                    if score > best_match_score:
+                                        best_match = window_indices[j]
+                                        best_match_score = score
+                    
                     if best_match_score < 90:
                         matched_words = sum(1 for word in answer_words if len(word) > 2 and word in window_text)
                         total_important_words = sum(1 for word in answer_words if len(word) > 2)
@@ -133,7 +148,7 @@ class AutoSelector:
                                 best_match = window_indices[0]
                                 best_match_score = score
                 
-                if best_match is not None and best_match_score > 40:
+                if best_match is not None and best_match_score > 50:
                     x = ocr_data['left'][best_match]
                     y = ocr_data['top'][best_match] + ocr_data['height'][best_match] // 2
                     
