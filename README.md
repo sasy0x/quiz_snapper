@@ -1,25 +1,41 @@
-# QuizSnapper
+# QuizSnapper v1.1.0
 
 **QuizSnapper** is a desktop application that captures screenshots, extracts text using OCR, and provides AI-powered answers to questions. Built with privacy in mind, it works entirely offline using local AI models.
 
+## What's New in v1.1.0
+
+- **Auto-Select Answers**: Automatically clicks correct answers for multiple choice and true/false questions
+- **Real-time Toggle**: Enable/disable auto-selection from the system tray menu
+- **Smart Detection**: Identifies question types and only auto-selects for supported formats
+- **Human-like Behavior**: Random delays and mouse movements to simulate natural interaction
+
 ## Features
 
+### Core Features
 - **Screenshot Capture**: Select any screen region with a customizable keyboard shortcut
 - **OCR Text Extraction**: Extract text from images using Tesseract OCR (supports multiple languages)
 - **AI-Powered Answers**: Get intelligent responses using local Ollama models or external APIs
-- **MATCH Questions Support**: Automatically handles matching questions (A→1, B→2, etc.)
-- **Multiple Question Types**: Multiple choice, true/false, short answer, and MATCH formats
+- **Auto-Select Answers** ⭐ NEW: Automatically clicks correct answers on screen for multiple choice and true/false questions
+
+### Question Support
+- **Multiple Choice**: Single and multiple answer questions
+- **True/False**: Boolean questions
+- **MATCH Questions**: Matching questions (A→1, B→2, etc.)
+- **Short Answer**: Text-based responses
+
+### Advanced Features
 - **PDF Knowledge Base**: Load PDF documents as reference material for more accurate answers
 - **Smart Output Formatting**: Clean, readable answers with optional explanations
-- **Transparent Popup**: Modern, less invasive UI with 95% transparency
-- **Dual Close Buttons**: Subtle close buttons on both left and right sides
-- **Draggable Window**: Click and drag title bar or title text to move popup
 - **System Tray Integration**: Runs quietly in the background with easy access
 - **Auto-Retry Logic**: Automatic retry on API failures (3 attempts)
-- **Customizable Interface**: Configure popup position, size, transparency, and appearance
 - **Privacy-Focused**: All processing happens locally by default
+
+### User Interface
+- **Transparent Popup**: Modern, less invasive UI with 95% transparency
+- **Draggable Window**: Click and drag title bar to move popup
+- **Customizable Interface**: Configure popup position, size, transparency, and appearance
+- **Custom Tray Icons**: Choose from multiple icon styles
 - **Debug Mode**: Enhanced logging with color-coded output for troubleshooting
-- **Custom Tray Icons**: Choose from multiple icon styles (default, avast, spotify, etc.)
 
 ## Privacy & Security
 
@@ -94,12 +110,14 @@ The `config.json` file controls all application settings. Here's a complete guid
 
 ```json
 {
+  "version": "1.1.0",
   "shortcut": "ctrl+alt+x",
   "debug_mode": false,
   "log_file": "app.log"
 }
 ```
 
+- **version**: Application version
 - **shortcut**: Keyboard combination to trigger screenshot capture
 - **debug_mode**: Enable detailed logging with colors (true/false)
 - **log_file**: Path to log file
@@ -132,6 +150,7 @@ The `config.json` file controls all application settings. Here's a complete guid
 
 ```json
 {
+  "popup_enabled": true,
   "popup_position": "bottom_right",
   "popup_duration_ms": 7000,
   "popup_width": 420,
@@ -141,6 +160,9 @@ The `config.json` file controls all application settings. Here's a complete guid
 }
 ```
 
+- **popup_enabled** ⭐: Show/hide answer popup window (true/false)
+  - When disabled, answers are only logged (useful with auto-select)
+  - Can be toggled from tray menu
 - **popup_position**: Where the popup appears on screen
   - Options: `bottom_right`, `top_right`, `bottom_left`, `top_left`, `center`
 - **popup_duration_ms**: How long the popup stays visible (milliseconds)
@@ -148,6 +170,25 @@ The `config.json` file controls all application settings. Here's a complete guid
 - **popup_height**: Popup height in pixels (default: 280)
 - **popup_auto_close_delay_ms**: Auto-close delay (0 = never auto-close)
 - **popup_transparency**: Window transparency (0.0 to 1.0, default: 0.95)
+
+### Auto-Select Feature ⭐ NEW
+
+```json
+{
+  "auto_select_enabled": false
+}
+```
+
+- **auto_select_enabled**: Enable automatic answer selection (true/false)
+  - When enabled, QuizSnapper will automatically click correct answers on screen
+  - Works for multiple choice (radio/checkbox) and true/false questions
+  - Supports multiple correct answers (comma-separated responses)
+  - Does NOT work for MATCH, drag & drop, or fill-in questions
+  - Can be toggled in real-time from the system tray menu
+  - **How it works**: Uses OCR to locate answer text on screen and clicks radio buttons
+  - **Smart matching**: Exact match priority, handles OCR errors like (e) prefix
+  - **Requirements**: Answers must be visible as text on screen
+  - **Safety**: PyAutoGUI fail-safe enabled (move mouse to corner to stop)
 
 ### AI Provider
 
@@ -192,16 +233,17 @@ The `config.json` file controls all application settings. Here's a complete guid
 ```json
 {
   "prompt_template": "You are an AI assistant helping with quiz questions. Analyze the following text extracted from a screenshot and provide a clear, concise answer.\n\nQuestion: [TEXT]\n\nProvide the correct answer with a brief explanation if needed.",
-  "show_explanation": true,
+  "show_explanation": false,
   "clean_output": true
 }
 ```
 
 - **prompt_template**: Instructions sent to AI
 - Use `[TEXT]` as placeholder for extracted text
-- **show_explanation**: Include explanations in answers (true/false)
+- **show_explanation** ⭐: Include explanations in answers (true/false)
   - `true`: Full answer with explanation
   - `false`: Only the correct answer(s)
+  - Can be toggled from tray menu
 - **clean_output**: Remove "The correct answer is" and format nicely (true/false)
 
 ### PDF Knowledge Base
@@ -271,18 +313,25 @@ python -m src.main
 
 1. **Start the application** - An icon appears in your system tray
 2. **Press the hotkey** (default: `Ctrl+Alt+X`) or right-click tray icon → "Capture Screenshot"
-3. **Select screen area** - Click and drag to select the region containing your question
+3. **Select screen area** - A nearly transparent overlay (90% transparent) appears with cyan border
+   - Click and drag to select the region containing your question
+   - Minimal visual impact for stealth operation
 4. **Wait for processing** - OCR extracts text, AI generates answer
-5. **View answer** - A popup window shows the AI's response
+5. **View answer** - A popup window shows the AI's response (if enabled)
 6. **Close popup** - Click X or wait for auto-close
 
 ### System Tray Menu
 
 Right-click the tray icon to access:
 - **Capture Screenshot**: Manually trigger capture
+- **Auto-Select Answers** ⭐: Toggle automatic answer selection on/off
+- **Show Popup** ⭐: Toggle answer popup window on/off
+- **Show Explanation** ⭐: Toggle detailed explanations in answers
 - **Open Configuration**: Edit config.json
 - **View Logs**: Open log file
 - **Exit**: Close the application
+
+All toggles show a checkmark when enabled and save immediately to config.
 
 ## Adding Custom Tray Icons
 
@@ -370,6 +419,18 @@ Right-click the tray icon to access:
 - Ensure `api_url` matches your provider
 - Test API key with provider's documentation
 
+### Auto-Select Not Working
+
+**Problem**: Auto-select feature doesn't click answers
+
+**Solutions**:
+- Ensure auto-select is enabled in tray menu (checkmark visible)
+- Verify answers are visible as text on screen (not images)
+- Check that question type is supported (multiple choice or true/false)
+- Enable debug mode to see detection logs
+- Ensure no other windows are covering the quiz
+- Move mouse to screen corner to trigger fail-safe if needed
+
 ## Debug Mode
 
 Enable enhanced debugging:
@@ -409,6 +470,7 @@ quiz_snapper/
 │   ├── screenshot.py    # Screen capture functionality
 │   ├── ocr.py           # Text extraction
 │   ├── ollama_integration.py # AI integration
+│   ├── auto_selector.py # Auto-select answers (v1.1.0)
 │   └── utils.py         # Logging and utilities
 ├── config.json          # User configuration
 ├── requirements.txt     # Python dependencies

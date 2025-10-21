@@ -12,6 +12,7 @@ import tkinter.messagebox
 try:
     from .config_manager import config, save_config, load_config, CONFIG_FILE
     from .utils import log_info, log_error, log_warning
+    from .auto_selector import get_auto_selector
 except ImportError:
     print("Warning: Could not import config_manager or utils.")
     class MockConfig:
@@ -29,6 +30,7 @@ except ImportError:
     def log_info(msg, *args, **kwargs): print(f"INFO: {msg}")
     def log_error(msg, *args, **kwargs): print(f"ERROR: {msg}")
     def log_warning(msg, *args, **kwargs): print(f"WARNING: {msg}")
+    def get_auto_selector(): return None
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -301,6 +303,9 @@ class SystemTrayApp:
 
         menu = (
             pystray.MenuItem('Capture Screenshot', self._capture_screenshot_action),
+            pystray.MenuItem('Auto-Select Answers', self._toggle_auto_select_action, checked=self._is_auto_select_enabled),
+            pystray.MenuItem('Show Popup', self._toggle_popup_action, checked=self._is_popup_enabled),
+            pystray.MenuItem('Show Explanation', self._toggle_explanation_action, checked=self._is_explanation_enabled),
             pystray.MenuItem('Open Configuration', self._open_config_action),
             pystray.MenuItem('View Logs', self._view_logs_action),
             pystray.MenuItem('Exit', self._exit_action)
@@ -314,6 +319,55 @@ class SystemTrayApp:
             threading.Thread(target=self.on_capture_callback, args=(self,), daemon=True).start()
         else:
             self._show_generic_error_dialog("Action Failed", "Capture callback not configured.")
+
+    def _is_auto_select_enabled(self, item):
+        auto_selector = get_auto_selector()
+        return auto_selector.is_enabled() if auto_selector else False
+
+    def _toggle_auto_select_action(self, icon, item):
+        auto_selector = get_auto_selector()
+        if auto_selector:
+            new_state = not auto_selector.is_enabled()
+            auto_selector.set_enabled(new_state)
+            
+            current_config = load_config()
+            current_config['auto_select_enabled'] = new_state
+            save_config(current_config)
+            
+            status = "enabled" if new_state else "disabled"
+            log_info(f"Auto-select answers {status} via tray menu")
+        else:
+            log_error("Auto-selector not available")
+
+    def _is_popup_enabled(self, item):
+        return config.get('popup_enabled', True)
+
+    def _toggle_popup_action(self, icon, item):
+        current_config = load_config()
+        new_state = not current_config.get('popup_enabled', True)
+        current_config['popup_enabled'] = new_state
+        save_config(current_config)
+        
+        global config
+        config = current_config
+        
+        status = "enabled" if new_state else "disabled"
+        log_info(f"Popup {status} via tray menu")
+
+    def _is_explanation_enabled(self, item):
+        return config.get('show_explanation', False)
+
+    def _toggle_explanation_action(self, icon, item):
+        current_config = load_config()
+        new_state = not current_config.get('show_explanation', False)
+        current_config['show_explanation'] = new_state
+        save_config(current_config)
+        
+        global config
+        config = current_config
+        
+        status = "enabled" if new_state else "disabled"
+        log_info(f"Show explanation {status} via tray menu")
 
 
     def _open_config_action(self, icon, item):

@@ -27,7 +27,7 @@ class ScreenRegionSelector:
                 self.overlay.delete(self.rect)
             self.rect = self.overlay.create_rectangle(
                 self.start_x, self.start_y, cur_x, cur_y,
-                outline='red', width=2
+                outline='cyan', width=3
             )
 
     def _on_mouse_release(self, event):
@@ -48,11 +48,11 @@ class ScreenRegionSelector:
     def select_region(self):
         self.root = tk.Tk()
         self.root.attributes("-fullscreen", True)
-        self.root.attributes("-alpha", 0.3)
+        self.root.attributes("-alpha", 0.1)
         self.root.attributes("-topmost", True)
         self.root.wait_visibility(self.root)
 
-        self.overlay = tk.Canvas(self.root, cursor="cross", bg="gray")
+        self.overlay = tk.Canvas(self.root, cursor="cross", bg="black")
         self.overlay.pack(fill=tk.BOTH, expand=True)
 
         self.overlay.bind("<ButtonPress-1>", self._on_mouse_press)

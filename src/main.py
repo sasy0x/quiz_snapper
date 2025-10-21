@@ -7,6 +7,7 @@ from .ocr import image_to_text
 from .ollama_integration import get_ai_response
 from .gui import SystemTrayApp
 from .utils import initial_checks, log_info, log_error
+from .auto_selector import get_auto_selector
 
 processing_lock = threading.Lock()
 app_running = True
@@ -18,18 +19,20 @@ def process_screenshot_workflow(tray_app_instance_ref: SystemTrayApp):
         return
 
     active_popup = None
+    screenshot_region = None
+    popup_enabled = config.get('popup_enabled', True)
     log_info("Screenshot workflow started")
 
     try:
-        active_popup = tray_app_instance_ref._show_response_popup(
-            title="QuizSnapper",
-            message="Processing your screenshot...",
-            start_auto_close=False
-        )
+        if popup_enabled:
+            active_popup = tray_app_instance_ref._show_response_popup(
+                title="QuizSnapper",
+                message="Processing your screenshot...",
+                start_auto_close=False
+            )
 
-        if not active_popup:
-            log_error("Failed to create popup window")
-            return
+            if not active_popup:
+                log_error("Failed to create popup window")
 
         pil_image = capture_selected_region()
         if not pil_image:
@@ -41,12 +44,19 @@ def process_screenshot_workflow(tray_app_instance_ref: SystemTrayApp):
         text_from_ocr = image_to_text(pil_image)
         ai_response = get_ai_response(text_from_ocr)
 
-        if active_popup:
+        if popup_enabled and active_popup:
             active_popup.update_text(
                 ai_response,
                 new_title="Answer",
                 auto_close_when_final=True
             )
+        elif not popup_enabled:
+            log_info(f"Popup disabled. Answer: {ai_response}")
+
+        auto_selector = get_auto_selector()
+        if auto_selector.is_enabled():
+            log_info("Auto-selector is enabled, attempting to select answers")
+            auto_selector.find_and_click_answers(ai_response, screenshot_region)
 
     except Exception as e:
         log_error(f"Workflow error: {e}", exc_info=True)
@@ -88,10 +98,13 @@ def on_app_exit():
 
 
 def main():
-    log_info("QuizSnapper starting...")
+    log_info("QuizSnapper v1.1.0 starting...")
     
     current_config = load_config()
     save_config(current_config)
+
+    auto_selector = get_auto_selector()
+    auto_selector.set_enabled(current_config.get('auto_select_enabled', False))
 
     tray_app = SystemTrayApp(
         on_exit_callback=on_app_exit, 

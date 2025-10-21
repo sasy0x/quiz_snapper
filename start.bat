@@ -1,1 +1,3 @@
+@echo off
+echo Starting QuizSnapper v1.1.0 in background mode...
 pythonw -m src.main

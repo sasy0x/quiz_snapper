@@ -1,2 +1,15 @@
+@echo off
+echo ========================================
+echo QuizSnapper v1.1.0 - Setup
+echo ========================================
+echo.
+echo Installing Python dependencies...
 pip install -r requirements.txt
-python -m src.main
+echo.
+echo Setup complete!
+echo.
+echo To start QuizSnapper:
+echo   - Background mode: start.bat
+echo   - Debug mode: start_debug.bat
+echo.
+pause

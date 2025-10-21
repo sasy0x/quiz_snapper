@@ -66,6 +66,9 @@ def clean_ai_output(raw_response: str) -> str:
         line = re.sub(r'^(The correct answer is:|The correct answers are:|Answer:|Answers?:)\s*', '', line, flags=re.IGNORECASE)
         line = re.sub(r'^\*\*(.+?)\*\*$', r'\1', line)
         line = re.sub(r'\*\*(.+?)\*\*', r'\1', line)
+        line = re.sub(r'^\(e\)\s*', '', line, flags=re.IGNORECASE)
+        line = re.sub(r'^[©Oo•\-\*\s]+', '', line)
+        line = line.strip()
         
         if not show_explanation:
             if any(keyword in line.lower() for keyword in ['explanation:', 'because', 'this is because', 'the reason', 'note:']):
@@ -92,14 +95,21 @@ def clean_ai_output(raw_response: str) -> str:
         if is_match_question:
             line = re.sub(r'\s*->\s*', ' → ', line)
             line = re.sub(r'\s*--\s*', ' → ', line)
-            if not line.startswith('•'):
-                answers.append(line)
-            else:
-                answers.append(line)
-        else:
-            if not line.startswith('•') and not re.match(r'^[A-Z]\s*→', line):
-                line = '• ' + line
             answers.append(line)
+        else:
+            if ',' in line and not line.startswith('•'):
+                split_answers = [a.strip() for a in line.split(',')]
+                for ans in split_answers:
+                    if ans and len(ans) > 2:
+                        clean_ans = re.sub(r'^[Oo•\-\*]+\s*', '', ans)
+                        if clean_ans:
+                            answers.append('• ' + clean_ans)
+            else:
+                if not line.startswith('•') and not re.match(r'^[A-Z]\s*→', line):
+                    line = re.sub(r'^[Oo•\-\*]+\s*', '• ', line)
+                else:
+                    line = re.sub(r'^[Oo]+\s*', '• ', line)
+                answers.append(line)
     
     return '\n'.join(answers) if answers else result
 

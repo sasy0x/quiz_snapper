@@ -4,18 +4,21 @@ from pathlib import Path
 CONFIG_FILE = Path(__file__).resolve().parent.parent / "config.json"
 
 DEFAULT_CONFIG = {
+    "version": "1.1.0",
     "shortcut": "ctrl+alt+x",
     "debug_mode": False,
     "log_file": "app.log",
     "tray_icon": "default",
     "tray_menu_title": "QuizSnapper",
     "ocr_lang": "eng+ita",
+    "popup_enabled": True,
     "popup_position": "bottom_right",
     "popup_duration_ms": 7000,
     "popup_width": 420,
     "popup_height": 280,
     "popup_auto_close_delay_ms": 7000,
     "popup_transparency": 0.95,
+    "auto_select_enabled": False,
     "ai_provider": "ollama",
     "ollama_model": "deepseek-r1:1.5b",
     "ollama_api_url": "http://localhost:11434/api/generate",
