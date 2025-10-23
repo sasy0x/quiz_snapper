@@ -73,17 +73,79 @@ def process_screenshot_workflow(tray_app_instance_ref: SystemTrayApp):
             log_info("Screenshot workflow completed")
 
 
+def toggle_auto_selector(tray_app_instance_ref: SystemTrayApp):
+    auto_selector = get_auto_selector()
+    new_state = not auto_selector.is_enabled()
+    auto_selector.set_enabled(new_state)
+    
+    current_config = load_config()
+    current_config['auto_select_enabled'] = new_state
+    save_config(current_config)
+    
+    status_text = "ENABLED" if new_state else "DISABLED"
+    status_icon = "✓" if new_state else "✗"
+    message = f"{status_icon} Auto-Selector {status_text}"
+    
+    log_info(f"Auto-selector toggled via shortcut: {status_text}")
+    
+    tray_app_instance_ref._recreate_tray_icon()
+    
+    popup = tray_app_instance_ref._show_response_popup(
+        title="Auto-Selector",
+        message=message,
+        start_auto_close=False
+    )
+    if popup:
+        tray_app_instance_ref.root.after(2000, popup.close)
+
+
+def toggle_popup(tray_app_instance_ref: SystemTrayApp):
+    current_config = load_config()
+    new_state = not current_config.get('popup_enabled', True)
+    current_config['popup_enabled'] = new_state
+    save_config(current_config)
+    
+    status_text = "ENABLED" if new_state else "DISABLED"
+    status_icon = "✓" if new_state else "✗"
+    message = f"{status_icon} Popup Display {status_text}"
+    
+    log_info(f"Popup display toggled via shortcut: {status_text}")
+    
+    tray_app_instance_ref._recreate_tray_icon()
+    
+    popup = tray_app_instance_ref._show_response_popup(
+        title="Popup Display",
+        message=message,
+        start_auto_close=False
+    )
+    if popup:
+        tray_app_instance_ref.root.after(2000, popup.close)
+
+
 def setup_hotkey(tray_app_instance_ref: SystemTrayApp):
     shortcut = config.get('shortcut', 'ctrl+alt+x')
+    toggle_shortcut = config.get('auto_selector_toggle_shortcut', 'ctrl+alt+a')
+    popup_toggle_shortcut = config.get('popup_toggle_shortcut', 'ctrl+alt+p')
+    
     try:
         keyboard.add_hotkey(shortcut, process_screenshot_workflow, args=(tray_app_instance_ref,))
-        log_info(f"Hotkey registered: {shortcut}")
-        print(f"QuizSnapper is running. Press '{shortcut}' to capture or use the tray icon.")
+        log_info(f"Capture hotkey registered: {shortcut}")
+        
+        keyboard.add_hotkey(toggle_shortcut, toggle_auto_selector, args=(tray_app_instance_ref,))
+        log_info(f"Auto-selector toggle hotkey registered: {toggle_shortcut}")
+        
+        keyboard.add_hotkey(popup_toggle_shortcut, toggle_popup, args=(tray_app_instance_ref,))
+        log_info(f"Popup toggle hotkey registered: {popup_toggle_shortcut}")
+        
+        print(f"QuizSnapper is running.")
+        print(f"  Press '{shortcut}' to capture screenshot")
+        print(f"  Press '{toggle_shortcut}' to toggle auto-selector")
+        print(f"  Press '{popup_toggle_shortcut}' to toggle popup display")
     except Exception as e:
-        log_error(f"Failed to register hotkey '{shortcut}': {e}", exc_info=True)
+        log_error(f"Failed to register hotkeys: {e}", exc_info=True)
         tray_app_instance_ref._show_generic_error_dialog(
             "Hotkey Error", 
-            f"Failed to register hotkey '{shortcut}': {e}\n\nTry a different shortcut in config.json."
+            f"Failed to register hotkeys: {e}\n\nTry different shortcuts in config.json."
         )
         return False
     return True
@@ -99,7 +161,7 @@ def on_app_exit():
 
 
 def main():
-    log_info("QuizSnapper v1.2.0 starting...")
+    log_info("QuizSnapper v1.3.0 starting...")
     
     current_config = load_config()
     save_config(current_config)

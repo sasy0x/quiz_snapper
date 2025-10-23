@@ -1,4 +1,4 @@
-# QuizSnapper v1.2.0 - Quick Start Guide
+# QuizSnapper v1.3.0 - Quick Start Guide
 
 Get up and running with QuizSnapper in 5 minutes!
 
@@ -68,17 +68,33 @@ Look for the QuizSnapper icon in your system tray (bottom-right corner).
 
 1. **Open your quiz** in a browser or application
 2. **Press `Ctrl+Alt+X`** (or your configured shortcut)
-3. **Select the question area** by clicking and dragging
-4. **Wait 2-3 seconds** for processing
-5. **View the answer** in the popup window
+3. **Select the question area** - a semi-transparent overlay appears
+4. **Click and drag** to select the region with your question
+5. **Wait 2-3 seconds** for OCR and AI processing
+6. **View the answer** in the popup window
+
+### New in v1.3.0:
+- **Enhanced Matching Questions**: Clear format showing what matches with what
+- **Keyboard Toggle**: Press `Ctrl+Alt+A` to enable/disable auto-selector
+- **Better Accuracy**: Improved prompts and OCR preprocessing
 
 ## Using Auto-Select
 
 To automatically click answers:
 
+**Method 1 - Tray Icon**:
 1. **Right-click** the tray icon
 2. **Click "Auto-Select Answers"** to enable (checkmark appears)
-3. **Use normally** - answers will be clicked automatically
+
+**Method 2 - Keyboard** (NEW):
+1. **Press `Ctrl+Alt+A`** to toggle on/off
+2. A notification popup confirms the state
+
+**Features**:
+- ✅ Single answer questions
+- ✅ Multiple answer questions (selects ALL correct answers)
+- ✅ True/False questions
+- ❌ Matching questions (shows answer but doesn't auto-select)
 
 **Safety**: Move mouse to any corner to stop auto-clicking.
 

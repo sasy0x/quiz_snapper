@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo QuizSnapper v1.2.0 - Setup
+echo QuizSnapper v1.3.0 - Setup
 echo ========================================
 echo.
 echo Installing Python dependencies...

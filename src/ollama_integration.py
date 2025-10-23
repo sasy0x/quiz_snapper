@@ -56,7 +56,20 @@ def clean_ai_output(raw_response: str) -> str:
     if not clean_output:
         return raw_response
     
-    lines = raw_response.split('\n')
+    result = raw_response
+    
+    result = re.sub(r'<[^>]*>', '', result)
+    result = re.sub(r'<think>.*?</think>', '', result, flags=re.DOTALL)
+    result = re.sub(r'â\x86\x92', '→', result)
+    result = re.sub(r'â†’', '→', result)
+    result = re.sub(r'â\x80\x93', '-', result)
+    result = re.sub(r'â\x80\x94', '—', result)
+    result = re.sub(r'â\x80\x98', "'", result)
+    result = re.sub(r'â\x80\x99', "'", result)
+    result = re.sub(r'â\x80\x9c', '"', result)
+    result = re.sub(r'â\x80\x9d', '"', result)
+    
+    lines = result.split('\n')
     cleaned_lines = []
     in_explanation = False
     
@@ -86,34 +99,48 @@ def clean_ai_output(raw_response: str) -> str:
         parts = result.split('\n\n')
         result = parts[0] if parts else result
     
-    is_match_question = bool(re.search(r'[A-Z]\s*[→\-]\s*\d', result))
+    potential_matches = re.findall(r'([A-Z])\s*[→\-]>\s*(.+?)(?=\s*[A-Z]\s*[→\-]>|$)', result)
+    is_match_question = len(potential_matches) >= 3
+    
     if is_match_question:
-        result = re.sub(r'\s*->\s*', ' → ', result)
-        result = re.sub(r'\s*--\s*', ' → ', result)
-        result = re.sub(r'â\x86\x92', '→', result)
-        result = re.sub(r'â\x80\x99', '→', result)
-        lines = result.split('\n')
-        match_lines = []
-        for line in lines:
-            match = re.search(r'([A-Z])\s*→\s*(.+)', line)
-            if match:
-                letter = match.group(1)
-                rest = match.group(2).strip()
-                first_sentence = rest.split('.')[0] if '.' in rest else rest
-                match_lines.append(f"{letter} → {first_sentence}")
-        result = '\n'.join(match_lines) if match_lines else result
+        log_info(f"Detected MATCHING question with {len(potential_matches)} pairs, formatting...")
+        
+        match_dict = {}
+        for letter, description in potential_matches:
+            description = description.strip()
+            description = re.sub(r'[,;\.\s]+$', '', description)
+            if len(description) > 5:
+                match_dict[letter] = description
+                log_info(f"Extracted: {letter} → {description[:60]}")
+        
+        if len(match_dict) >= 3:
+            formatted_lines = []
+            formatted_lines.append("\n=== MATCHING PAIRS ===")
+            for letter in sorted(match_dict.keys()):
+                formatted_lines.append(f"[{letter}] matches with: {match_dict[letter]}")
+            formatted_lines.append("=====================\n")
+            result = '\n'.join(formatted_lines)
+            log_info(f"Formatted {len(match_dict)} matching pairs")
+        else:
+            log_info("Not enough valid pairs, treating as normal question")
+            is_match_question = False
     
     return result
 
 
 def get_ai_response(text_from_ocr: str) -> str:
-    """Send OCR text to AI provider and get response."""
     if not text_from_ocr:
+        log_error("No OCR text provided to AI")
         return "No text was extracted from the screenshot."
     
-    log_info("Getting AI response for extracted text")
+    log_info(f"OCR Input ({len(text_from_ocr)} chars): {text_from_ocr[:200]}...")
     raw_response = _get_response_from_ai_provider(text_from_ocr)
-    return clean_ai_output(raw_response)
+    log_info(f"Raw AI Response: {raw_response[:300]}...")
+    
+    cleaned = clean_ai_output(raw_response)
+    log_info(f"Cleaned Output: {cleaned}")
+    
+    return cleaned
 
 
 def _get_response_from_ai_provider(text_from_ocr: str) -> str:
@@ -145,11 +172,16 @@ def _call_ollama(text_from_ocr: str, pdf_context: str = "") -> str:
     
     show_explanation = current_config.get('show_explanation', True)
     if show_explanation:
-        prompt_template += "\n\nProvide the correct answer(s) followed by a brief explanation of why it is correct."
+        prompt_template += "\n\nProvide the correct answer(s) followed by a brief explanation."
     else:
-        prompt_template += "\n\nProvide ONLY the correct answer(s), without any explanation or additional text."
+        if 'match' in text_from_ocr.lower() or 'pair' in text_from_ocr.lower():
+            prompt_template += "\n\nMATCHING QUESTION - Critical Instructions:\n1. Read the ENTIRE question carefully\n2. Identify what needs to be matched (left column vs right column)\n3. For EACH letter (A, B, C, D, etc.), determine the CORRECT match\n4. Format EXACTLY as: 'A -> complete description', 'B -> complete description', etc.\n5. Each match on a separate line\n6. Think logically about relationships and definitions\n7. Do NOT include special tokens, explanations, or metadata\n8. ONLY provide the final matching pairs"
+        else:
+            prompt_template += "\n\nReturn ONLY the exact text of the correct answer(s) as shown in the options. For multiple answers, list each on a new line with a dash (-)."
     
     prompt = prompt_template.replace("[TEXT]", text_from_ocr)
+    
+    log_info(f"Ollama prompt length: {len(prompt)} chars")
     
     if pdf_context:
         prompt = f"Use the following reference material to answer the question:\n\n{pdf_context}\n\n{prompt}"
@@ -170,6 +202,11 @@ def _call_ollama(text_from_ocr: str, pdf_context: str = "") -> str:
             data = response.json()
             
             ai_text = data.get("response", "No response from Ollama")
+            
+            ai_text = re.sub(r'<\|.*?\|>', '', ai_text)
+            ai_text = re.sub(r'<think>.*?</think>', '', ai_text, flags=re.DOTALL)
+            
+            log_info(f"Ollama response received: {len(ai_text)} chars")
             
             if config.get('debug_mode'):
                 from .utils import debug_print
@@ -209,15 +246,21 @@ def _call_external_api(text_from_ocr: str, pdf_context: str = "") -> str:
         "Answer the following question based on your knowledge.\n\nQuestion: [TEXT]")
     
     if not all([api_url, api_key, model_name]):
+        log_error("API configuration incomplete")
         return "Error: API configuration incomplete. Check config.json"
     
     show_explanation = current_config.get('show_explanation', True)
     if show_explanation:
-        prompt_template += "\n\nProvide the correct answer(s) followed by a brief explanation of why it is correct."
+        prompt_template += "\n\nProvide the correct answer(s) followed by a brief explanation."
     else:
-        prompt_template += "\n\nProvide ONLY the correct answer(s), without any explanation or additional text."
+        if 'match' in text_from_ocr.lower() or 'pair' in text_from_ocr.lower():
+            prompt_template += "\n\nMATCHING QUESTION - Critical Instructions:\n1. Read the ENTIRE question carefully\n2. Identify what needs to be matched (left column vs right column)\n3. For EACH letter (A, B, C, D, etc.), determine the CORRECT match\n4. Format EXACTLY as: 'A -> complete description', 'B -> complete description', etc.\n5. Each match on a separate line\n6. Think logically about relationships and definitions\n7. Do NOT include special tokens, explanations, or metadata\n8. ONLY provide the final matching pairs"
+        else:
+            prompt_template += "\n\nReturn ONLY the exact text of the correct answer(s) as shown in the options. For multiple answers, list each on a new line with a dash (-)."
     
     prompt_content = prompt_template.replace("[TEXT]", text_from_ocr)
+    
+    log_info(f"API: {api_url}, Model: {model_name}, Prompt length: {len(prompt_content)}")
     
     if pdf_context:
         prompt_content = f"Reference material:\n\n{pdf_context}\n\n{prompt_content}"
@@ -245,12 +288,15 @@ def _call_external_api(text_from_ocr: str, pdf_context: str = "") -> str:
             ai_text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
             
             if not ai_text:
+                log_error("Empty response from API")
                 return "Error: Empty response from API"
+            
+            log_info(f"API response received: {len(ai_text)} chars")
             
             if config.get('debug_mode'):
                 from .utils import debug_print
                 debug_print("API REQUEST", {"model": model_name, "prompt_length": len(prompt_content)})
-                debug_print("API RESPONSE", {"content_length": len(ai_text)})
+                debug_print("API RESPONSE", {"content_length": len(ai_text), "content": ai_text[:500]})
             
             return ai_text.strip()
         

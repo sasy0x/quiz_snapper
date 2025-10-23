@@ -332,6 +332,8 @@ class SystemTrayApp:
             
             status = "enabled" if new_state else "disabled"
             log_info(f"Auto-select answers {status} via tray menu")
+            
+            self._recreate_tray_icon()
         else:
             log_error("Auto-selector not available")
 

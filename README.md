@@ -1,16 +1,25 @@
-# QuizSnapper v1.2.0
+# QuizSnapper v1.3.0
 
 **QuizSnapper** is a desktop application that captures screenshots, extracts text using OCR, and provides AI-powered answers to questions. Built with privacy in mind, it works entirely offline using local AI models.
 
-## What's New in v1.2.0
+## What's New in v1.3.0
 
-- **Enhanced AI Accuracy**: Improved prompt engineering for more precise single-answer responses
-- **Smart Answer Detection**: AI automatically detects when multiple answers are required based on question wording
-- **Advanced OCR Processing**: Image upscaling, grayscale conversion, contrast enhancement, and sharpening for better text recognition
-- **Small Text Support**: Automatic upscaling for images with small text (< 1000x600px)
-- **Improved Fuzzy Matching**: Enhanced algorithm for better answer detection with OCR errors
-- **Real-time Config Updates**: Settings changes apply immediately without restart
-- **Optimized Output Formatting**: Cleaner answer presentation with better Unicode handling
+### Critical Fixes
+- **Tray Icon Synchronization**: Fixed shortcut ↔ tray icon state sync - changes reflect immediately
+- **Multiple Answer Selection**: Auto-selector now correctly selects ALL correct answers (2, 3, or more)
+- **Matching Questions**: Complete fix for matching pairs - all pairs (A→X, B→Y, etc.) now display correctly
+- **API Response Accuracy**: Enhanced prompts to ensure exact option matching without paraphrasing
+
+### Enhanced Features
+- **Advanced OCR**: OpenCV integration with adaptive thresholding, denoising, and morphological operations
+- **Adaptive Scaling**: Intelligent image preprocessing based on size (3x for small, 0.7x for large screenshots)
+- **Comprehensive Logging**: Detailed logs for OCR input, AI responses, auto-selector actions, and errors
+- **Keyboard Toggle**: New `Ctrl+Alt+A` shortcut to enable/disable auto-selector with visual feedback
+- **Semi-Transparent Overlay**: Screenshot capture with minimal visual interference (alpha 0.3)
+- **Smart Question Detection**: Automatic detection of matching questions with step-by-step reasoning prompts
+- **Enhanced Matching Format**: Clear structured output with headers and labels for easy understanding
+- **Special Token Removal**: Complete filtering of `<|begin_of_sentence|>` and all metadata tokens
+- **Encoding Fix**: Proper handling of arrow symbols (→) and special characters
 
 ## Features
 
@@ -21,10 +30,10 @@
 - **Auto-Select Answers** ⭐ NEW: Automatically clicks correct answers on screen for multiple choice and true/false questions
 
 ### Question Support
-- **Multiple Choice**: Single and multiple answer questions (AI detects when multiple answers are needed)
-- **True/False**: Boolean questions
+- **Multiple Choice**: Single and multiple answer questions with full auto-selection support
+- **True/False**: Boolean questions with auto-selection
 - **Short Answer**: Text-based responses
-- **MATCH Questions**: Displays matching pairs (auto-selection not supported)
+- **MATCH Questions**: Enhanced format with clear labels `[A] matches with: description` - auto-selection disabled
 
 ### Advanced Features
 - **PDF Knowledge Base**: Load PDF documents as reference material for more accurate answers
@@ -63,10 +72,11 @@
      - Add Tesseract to system PATH
    - Verify installation: `tesseract --version`
 
-2. **Ollama** (for local AI)
+2. **Ollama** (for local AI - optional)
    - Download from: [ollama.com/download](https://ollama.com/download)
    - Install and start the service
    - Verify it's running: Open browser to `http://localhost:11434`
+   - Note: You can also use external APIs (OpenRouter, OpenAI, etc.)
 
 ## Installation
 
@@ -82,6 +92,17 @@ cd quiz_snapper
 ```bash
 pip install -r requirements.txt
 ```
+
+Required packages:
+- Pillow (image processing)
+- pyautogui (auto-selection)
+- pytesseract (OCR)
+- pystray (system tray)
+- requests (API calls)
+- keyboard (hotkeys)
+- PyPDF2 (PDF context)
+- opencv-python (advanced OCR preprocessing)
+- numpy (image processing)
 
 ### Step 3: Download AI Model
 
@@ -113,8 +134,9 @@ The `config.json` file controls all application settings. Here's a complete guid
 
 ```json
 {
-  "version": "1.2.0",
+  "version": "1.3.0",
   "shortcut": "ctrl+alt+x",
+  "auto_selector_toggle_shortcut": "ctrl+alt+a",
   "debug_mode": false,
   "log_file": "app.log"
 }
@@ -122,6 +144,7 @@ The `config.json` file controls all application settings. Here's a complete guid
 
 - **version**: Application version
 - **shortcut**: Keyboard combination to trigger screenshot capture
+- **auto_selector_toggle_shortcut**: Keyboard shortcut to toggle auto-selector on/off (shows popup notification)
 - **debug_mode**: Enable detailed logging with colors (true/false)
 - **log_file**: Path to log file
 
@@ -184,14 +207,16 @@ The `config.json` file controls all application settings. Here's a complete guid
 
 - **auto_select_enabled**: Enable automatic answer selection (true/false)
   - When enabled, QuizSnapper will automatically click correct answers on screen
-  - Works for multiple choice (radio/checkbox) and true/false questions
-  - Supports multiple correct answers when explicitly required
-  - Can be toggled in real-time from the system tray menu
-  - **How it works**: Uses OCR to locate answer text on screen and clicks radio buttons
+  - Works for multiple choice (single and multiple answers), true/false questions
+  - **NEW**: Correctly selects ALL correct answers (2, 3, or more) in order
+  - Can be toggled via:
+    - System tray menu (right-click icon)
+    - Keyboard shortcut `Ctrl+Alt+A` (shows notification popup)
+  - **How it works**: Uses OCR to locate answer text on screen and clicks radio/checkboxes
   - **Smart matching**: Exact match priority, fuzzy matching for typos, handles OCR errors
   - **Requirements**: Answers must be visible as text on screen
   - **Safety**: PyAutoGUI fail-safe enabled (move mouse to corner to stop)
-  - **Note**: MATCH questions show answers in popup but auto-selection is not supported
+  - **Note**: MATCH questions show all pairs in popup but auto-selection is disabled
 
 ### AI Provider
 
@@ -284,13 +309,15 @@ activities to improve efficiency and customer value.
 
 ### MATCH Questions
 ```
-A → 2
-B → 3
-C → 1
-D → 4
+=== MATCHING PAIRS ===
+[A] matches with: Network monitoring and analysis tool
+[B] matches with: System logging service  
+[C] matches with: Time synchronization protocol
+[D] matches with: Network management protocol
+=====================
 ```
 
-The output is automatically cleaned to remove phrases like "The correct answer is" and formatted appropriately for each question type. See [MATCH_EXAMPLES.md](MATCH_EXAMPLES.md) for detailed MATCH question examples.
+The output is automatically cleaned and formatted with clear labels showing what each letter matches with. This makes it easy to understand the correct pairings at a glance.
 
 ## Usage
 
@@ -316,25 +343,32 @@ python -m src.main
 
 1. **Start the application** - An icon appears in your system tray
 2. **Press the hotkey** (default: `Ctrl+Alt+X`) or right-click tray icon → "Capture Screenshot"
-3. **Select screen area** - A nearly transparent overlay (90% transparent) appears with cyan border
+3. **Select screen area** - A semi-transparent overlay appears (alpha 0.3)
+   - Minimal visual interference with gray overlay
+   - Green selection border visible while dragging
    - Click and drag to select the region containing your question
-   - Minimal visual impact for stealth operation
 4. **Wait for processing** - OCR extracts text, AI generates answer
 5. **View answer** - A popup window shows the AI's response (if enabled)
-6. **Close popup** - Click X or wait for auto-close
+6. **Auto-selection** - If enabled, answers are automatically clicked on screen
+7. **Close popup** - Click X or wait for auto-close
+
+### Keyboard Shortcuts
+
+- **`Ctrl+Alt+X`**: Capture screenshot (configurable)
+- **`Ctrl+Alt+A`**: Toggle auto-selector on/off (shows notification popup)
 
 ### System Tray Menu
 
 Right-click the tray icon to access:
 - **Capture Screenshot**: Manually trigger capture
-- **Auto-Select Answers** ⭐: Toggle automatic answer selection on/off
+- **Auto-Select Answers** ⭐: Toggle automatic answer selection on/off (synced with keyboard shortcut)
 - **Show Popup** ⭐: Toggle answer popup window on/off
 - **Show Explanation** ⭐: Toggle detailed explanations in answers
 - **Open Configuration**: Edit config.json
-- **View Logs**: Open log file
+- **View Logs**: Open log file (detailed logging for debugging)
 - **Exit**: Close the application
 
-All toggles show a checkmark when enabled and save immediately to config.
+All toggles show a checkmark when enabled and save immediately to config. State changes sync instantly between tray menu and keyboard shortcuts.
 
 ## Adding Custom Tray Icons
 
@@ -397,10 +431,12 @@ All toggles show a checkmark when enabled and save immediately to config.
 **Problem**: Text extraction is inaccurate
 
 **Solutions**:
+- **v1.3.0 improvements**: OpenCV preprocessing with adaptive thresholding and denoising
 - Ensure screenshot has good contrast and resolution
 - Install additional Tesseract language packs
 - Capture larger screen area for more context
 - Use `eng+ita` or appropriate language combination
+- Check logs for OCR input/output details
 
 ### Popup Not Appearing
 
@@ -427,11 +463,18 @@ All toggles show a checkmark when enabled and save immediately to config.
 **Problem**: Auto-select feature doesn't click answers
 
 **Solutions**:
-- Ensure auto-select is enabled in tray menu (checkmark visible)
+- Ensure auto-select is enabled:
+  - Tray menu shows checkmark, OR
+  - Press `Ctrl+Alt+A` to toggle (notification popup confirms state)
 - Verify answers are visible as text on screen (not images)
-- Check that question type is supported (multiple choice or true/false)
-- MATCH questions are not supported for auto-selection
-- Enable debug mode to see detection logs
+- Check that question type is supported:
+  - ✓ Multiple choice (single answer)
+  - ✓ Multiple choice (2+ answers) - **v1.3.0 fixed**
+  - ✓ True/False
+  - ✗ MATCH questions (shows pairs but no auto-selection)
+- Check logs (`app.log`) for detailed auto-selector activity:
+  - "Attempting to select answer X/Y"
+  - "Successfully clicked answer" or "Failed to locate answer"
 - Ensure no other windows are covering the quiz
 - Move mouse to screen corner to trigger fail-safe if needed
 
@@ -464,9 +507,15 @@ Enable enhanced debugging:
 
 3. Debug output includes:
    - Color-coded log messages
+   - OCR input text (first 200 chars)
+   - Raw AI response (first 300 chars)
+   - Cleaned output
+   - Auto-selector activity (each answer attempt)
    - API request/response details
-   - OCR extracted text
+   - Matching question pair extraction
    - Timing information
+
+4. Check `app.log` for complete logs even without debug mode
 
 ## Project Structure
 

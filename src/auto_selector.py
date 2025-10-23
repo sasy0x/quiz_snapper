@@ -24,16 +24,36 @@ class AutoSelector:
     def parse_answers(self, ai_response: str) -> Tuple[str, List[str]]:
         lines = [line.strip() for line in ai_response.split('\n') if line.strip()]
         
+        # Check for matching questions
         if any(re.search(r'→', line) for line in lines):
             return 'match', []
         
-        first_line = lines[0] if lines else ""
+        if not lines:
+            return 'unknown', []
+        
+        # Clean first line
+        first_line = lines[0]
         first_line = re.sub(r'^[•\-\*]\s*', '', first_line)
         
+        # Check for True/False
         if first_line.lower() in ['true', 'false']:
             return 'true_false', [first_line]
         
-        return 'single_choice', [first_line] if first_line else []
+        # Check for multiple answers (bullet points or multiple lines)
+        answers = []
+        for line in lines:
+            # Remove bullet points and clean the line
+            cleaned = re.sub(r'^[•\-\*]\s*', '', line).strip()
+            if cleaned and not any(keyword in cleaned.lower() for keyword in ['explanation:', 'because', 'note:', 'the reason']):
+                answers.append(cleaned)
+        
+        # If we have multiple distinct answers, it's multiple choice
+        if len(answers) > 1:
+            return 'multiple_choice', answers
+        elif len(answers) == 1:
+            return 'single_choice', answers
+        
+        return 'unknown', []
 
     def find_and_click_answers(self, ai_response: str, screenshot_region: Optional[Tuple[int, int, int, int]] = None):
         if not self.enabled:
@@ -44,23 +64,29 @@ class AutoSelector:
         
         try:
             if question_type == 'match':
-                log_info("MATCH questions not supported for auto-selection")
+                log_info("MATCH questions detected - auto-selection disabled for matching")
                 return
             
             if question_type == 'unknown' or not answers:
-                log_warning("Could not determine question type or no answers found")
+                log_warning(f"Could not determine question type or no answers found. Type: {question_type}, Answers: {answers}")
                 return
             
-            log_info(f"Detected {question_type} question with {len(answers)} answer(s)")
+            log_info(f"Auto-selector: {question_type} question with {len(answers)} answer(s): {answers}")
             
             clicked_positions = []
-            for answer in answers:
+            for idx, answer in enumerate(answers, 1):
+                log_info(f"Attempting to select answer {idx}/{len(answers)}: '{answer}'")
                 clicked_pos = self._click_answer_on_screen(answer, screenshot_region, clicked_positions)
                 if clicked_pos:
                     clicked_positions.append(clicked_pos)
+                    log_info(f"Successfully clicked answer {idx}/{len(answers)} at position {clicked_pos}")
+                else:
+                    log_warning(f"Failed to locate answer {idx}/{len(answers)}: '{answer}'")
                 time.sleep(random.uniform(0.3, 0.6))
             
-            log_info(f"Successfully selected {len(clicked_positions)} answer(s)")
+            log_info(f"Auto-selection completed: {len(clicked_positions)}/{len(answers)} answers selected")
+            if len(clicked_positions) < len(answers):
+                log_error(f"Auto-selection incomplete: only {len(clicked_positions)}/{len(answers)} answers were found and clicked")
         
         except Exception as e:
             log_error(f"Error during auto-selection: {e}", exc_info=True)
